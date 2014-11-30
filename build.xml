@@ -1,0 +1,71 @@
+<?xml version="1.0" ?>
+<!DOCTYPE project>
+<project default="main">
+    <property name="server.path" value="${server.path}" />
+    <property environment="env" />
+    <property file="build.properties" />
+
+    <path id="classpath">
+        <fileset dir="lib" erroronmissingdir="false" />
+        <fileset dir="dependencies" erroronmissingdir="false" />
+        <fileset dir="${server.path}" casesensitive="false" includes="*.jar" erroronmissingdir="false" />
+    </path>
+
+    <target name="full" depends="clean, unjar, compile, setversion, compress" description="Build jar with all librarys" />
+    <target name="main" depends="compile, setversion, compress, deploy" description="Build jar with existing librarys and deploy" />
+
+    <target name="clean">
+        <delete dir="bin" failonerror="false" />
+        <delete dir="out" failonerror="false" />
+        <mkdir dir="bin" />
+        <mkdir dir="out" />
+    </target>
+
+    <target name="unjar">
+        <unjar dest="bin">
+            <fileset dir="lib" includes="*.jar" erroronmissingdir="false" />
+        </unjar>
+    </target>
+
+    <target name="getversion">
+        <tstamp />
+        <condition property="build.number" value="${bamboo.buildNumber}" else="dev-${DSTAMP}-${TSTAMP}-${user.name}">
+            <isset property="bamboo.buildNumber" />
+        </condition>
+    </target>
+
+    <target name="setversion" depends="compile" if="plugin.yml">
+        <replace file="bin/plugin.yml" token="$VERSION$" value="${build.number}" failonnoreplacements="false" />
+        <replace file="bin/plugin.yml" token="$MAINCLASS$" value="${mainclass}" failonnoreplacements="false" />
+    </target>
+
+    <target name="compile" depends="getversion">
+        <delete dir="${folder}" failonerror="false" />
+        <javac srcdir="src" destdir="bin" debug="on" debuglevel="lines,vars,source" classpathref="classpath" includeantruntime="false">
+            <compilerarg line="-encoding utf-8"/>
+        </javac>
+        <copy todir="bin">
+            <fileset dir="resources" erroronmissingdir="false" />
+        </copy>
+        <condition property="plugin.yml">
+            <available file="bin/plugin.yml" />
+        </condition>
+    </target>
+
+    <target name="compress" depends="getversion">
+        <tstamp />
+        <jar destfile="out/${jarname}" basedir="bin">
+            <manifest>
+                <attribute name="Main-Class" value="${mainclass}"/>
+                <attribute name="Built-By" value="${user.name}" />
+                <attribute name="Built-Date" value="${TODAY}"/>
+                <attribute name="Version" value="${build.number}" />
+                <attribute name="Revision" value="${build.number}" />
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="deploy" description="Deploy to plugins directory">
+        <copy todir="../TCommon/lib" file="out/${jarname}" />
+    </target>
+</project>
